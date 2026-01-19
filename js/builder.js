@@ -257,12 +257,335 @@ async function collectFormData() {
 // =====================
 // Canvas draws (return Promises so downloads wait correctly)
 // =====================
-@@ -537,7 +535,7 @@
+function drawFlyerCanvasImage(imageDataUrl, target) {
+  return new Promise((resolve) => {
+    const canvas = target.querySelector('#flyer-property-canvas');
+    if (!canvas || !imageDataUrl) return resolve();
+
+    const ctx = canvas.getContext('2d');
+    const img = new Image();
+    img.onload = () => {
+      const scale = Math.max(canvas.width / img.width, canvas.height / img.height);
+      const x = (canvas.width - img.width * scale) / 2;
+      const y = (canvas.height - img.height * scale) / 2;
+      ctx.clearRect(0, 0, canvas.width, canvas.height);
+      ctx.drawImage(img, x, y, img.width * scale, img.height * scale);
+      resolve();
+    };
+    img.onerror = () => resolve();
+    img.src = imageDataUrl;
+  });
+}
+
+function drawNewsletterCanvasImage(imageDataUrl, target) {
+  return new Promise((resolve) => {
+    const canvas = target.querySelector('#property-canvas');
+    if (!canvas || !imageDataUrl) return resolve();
+
+    const ctx = canvas.getContext('2d');
+    const img = new Image();
+    img.onload = () => {
+      const scale = Math.max(canvas.width / img.width, canvas.height / img.height);
+      const x = (canvas.width - img.width * scale) / 2;
+      const y = (canvas.height - img.height * scale) / 2;
+      ctx.clearRect(0, 0, canvas.width, canvas.height);
+      ctx.drawImage(img, x, y, img.width * scale, img.height * scale);
+      resolve();
+    };
+    img.onerror = () => resolve();
+    img.src = imageDataUrl;
+  });
+}
+
+function drawSocialCanvasImage(imageDataUrl, target) {
+  return new Promise((resolve) => {
+    const canvas = target.querySelector('#social-property-canvas');
+    if (!canvas || !imageDataUrl) return resolve();
+
+    const ctx = canvas.getContext('2d');
+
+    const propertyImg = new Image();
+    propertyImg.crossOrigin = 'anonymous';
+
+    propertyImg.onload = () => {
+      const scale = Math.max(canvas.width / propertyImg.width, canvas.height / propertyImg.height);
+      const x = (canvas.width - propertyImg.width * scale) / 2;
+      const y = (canvas.height - propertyImg.height * scale) / 2;
+
+      ctx.clearRect(0, 0, canvas.width, canvas.height);
+      ctx.drawImage(propertyImg, x, y, propertyImg.width * scale, propertyImg.height * scale);
+
+      // ✅ draw the red tag only AFTER photo is drawn
+      const redTag = new Image();
+      redTag.crossOrigin = 'anonymous';
+
+      redTag.onload = () => {
+        ctx.save();
+        ctx.globalCompositeOperation = 'source-over';
+        ctx.globalAlpha = SOCIAL_RED_TAG_ALPHA;
+
+        // Your mapping is based on the 1130 photo canvas area
+        const scaleFactor = canvas.width / 1130;
+
+        const redTagWidth = 490 * scaleFactor;
+        const redTagHeight = 462 * scaleFactor;
+
+        const redTagX = ((718 - 40) + SOCIAL_RED_TAG_NUDGE_X) * scaleFactor;
+        const redTagY = (0 + SOCIAL_RED_TAG_NUDGE_Y) * scaleFactor;
+
+        ctx.drawImage(redTag, redTagX, redTagY, redTagWidth, redTagHeight);
+        ctx.restore();
+
+        resolve(); // ✅ done
+      };
+
+      redTag.onerror = () => resolve();
+
+      // ✅ Use absolute URL so GitHub Pages always finds it
+      redTag.src = absUrl('assets/red-tag.png');
+    };
+
+    propertyImg.onerror = () => resolve();
+    propertyImg.src = imageDataUrl;
+  });
+}
+
+// =====================
+// Template load + populate (WAIT for canvas draws)
+// =====================
+async function loadTemplate(templatePath, targetId, data) {
+  const res = await fetch(absUrl(templatePath), { cache: "no-store" });
+  if (!res.ok) throw new Error(`Failed to load template: ${templatePath} (${res.status})`);
+
+  let html = await res.text();
+  for (const key in data) {
+    html = html.replaceAll(`{{${key}}}`, data[key] ?? '');
+  }
+
+  const target = document.getElementById(targetId);
+  if (!target) throw new Error(`Target not found: ${targetId}`);
+
+  target.innerHTML = html;
+
+  // ✅ Broker swaps must happen after HTML is inserted, before image-waits/screenshot
+  applyBrokerToTemplate(
+    target,
+    templatePath,
+    data.brokerId,
+    { name: data.brokerName, phone: data.brokerPhone, email: data.brokerEmail }
+  );
+
+  await waitForImagesToLoad(target);
+
+  // ✅ WAIT for canvas drawing to finish
+  if (templatePath.includes('newsletter')) {
+    await drawNewsletterCanvasImage(data.propertyImage, target);
+  } else if (templatePath.includes('social')) {
+    await drawSocialCanvasImage(data.propertyImage, target);
+  } else if (templatePath.includes('flyer')) {
+    await drawFlyerCanvasImage(data.propertyImage, target);
+  }
+
+  const container = await waitForElement('[id^="capture-container"]', target, 4000);
+  if (container) runFontResize(container, targetId);
+
+  await waitForRenderFrames(3);
+}
+
+// =====================
+// UI actions
+// =====================
+async function generateTemplate(template) {
+  const data = await collectFormData();
+  const map = {
+    social: { path: 'templates/social.html', target: 'social-preview' },
+    newsletter: { path: 'templates/newsletter.html', target: 'newsletter-preview' },
+    flyer: { path: 'templates/flyer.html', target: 'flyer-preview' }
+  };
+
+  const cfg = map[template];
+  if (!cfg) throw new Error(`Unknown template: ${template}`);
+
+  await loadTemplate(cfg.path, cfg.target, data);
+}
+
+async function generateAndDownload(template) {
+  try {
+    const data = await collectFormData();
+
+    // ✅ newsletter exports PNG (per your template)
+    const map = {
+      social: { path: 'templates/social.html', target: 'social-preview', filename: 'social.jpg', mime: 'image/jpeg' },
+      newsletter: { path: 'templates/newsletter.html', target: 'newsletter-preview', filename: 'newsletter.png', mime: 'image/png' },
+      flyer: { path: 'templates/flyer.html', target: 'flyer-preview', filename: 'flyer.jpg', mime: 'image/jpeg' }
+    };
+
+    const cfg = map[template];
+    if (!cfg) throw new Error(`Unknown template: ${template}`);
+
+    const { path, target, filename, mime } = cfg;
+    const previewWrapper = document.getElementById(target);
+    if (!previewWrapper) throw new Error(`Preview wrapper not found: ${target}`);
+
+    await loadTemplate(path, target, data);
+
+    const container = await waitForElement('[id^="capture-container"]', previewWrapper, 6000);
+    if (!container) throw new Error("Template container not found.");
+    if (container.offsetWidth === 0 || container.offsetHeight === 0) throw new Error("Template container not rendered.");
+
+    container.style.display = 'block';
+    container.style.visibility = 'visible';
+    container.style.opacity = 1;
+    container.style.pointerEvents = 'auto';
+    container.style.position = 'static';
+
+    await waitForImagesToLoad(container);
+    await waitForRenderFrames(4);
+
+    const canvas = await html2canvas(container, {
+      scale: 2,
+      useCORS: true,
+      backgroundColor: "#ffffff"
+    });
+
+    canvas.toBlob((blob) => {
+      if (!blob) {
+        alert("❌ Export failed (blob was null).");
+        return;
+      }
+
+      const link = document.createElement("a");
+      link.download = filename;
+      link.href = URL.createObjectURL(blob);
+      link.click();
+      URL.revokeObjectURL(link.href);
+
+      container.style.display = 'none';
+      container.style.position = 'absolute';
+      container.style.opacity = 0;
+      container.style.pointerEvents = 'none';
+    }, mime, mime === "image/jpeg" ? 0.92 : undefined);
+
+  } catch (err) {
+    console.error(err);
+    alert("❌ Design export failed: " + (err?.message || err));
+  }
+}
+
+// =====================
+// Word Summary (keep working)
+// =====================
+async function downloadWordDoc() {
+  const { Document, Packer, Paragraph, TextRun } = window.docx;
+
+  const { broker } = getSelectedBroker();
+
+  const rawDate = document.getElementById("date-picker")?.value || '';
+  const rawTime = document.getElementById("time-picker")?.value || '';
+  const fullDateObj = new Date(`${rawDate}T${rawTime}`);
+
+  const formattedDate = fullDateObj.toLocaleDateString('en-ZA', {
+    weekday: 'long',
+    day: 'numeric',
+    month: 'long',
+    year: 'numeric'
+  });
+
+  const fullDateTime = `${formattedDate} @ ${rawTime}`;
+
+  const fields = {
+    "Broker": `${broker.name || ''} | ${broker.phone || ''} | ${broker.email || ''}`,
+    "Headline": document.getElementById("headline")?.value || '',
+    "City": document.getElementById("city")?.value || '',
+    "Suburb": document.getElementById("suburb")?.value || '',
+    "Tagline 1": document.getElementById("tag1")?.value || '',
+    "Tagline 2": document.getElementById("tag2")?.value || '',
+    "Date & Time": fullDateTime,
+    "Feature 1": document.getElementById("feat1")?.value || '',
+    "Feature 2": document.getElementById("feat2")?.value || '',
+    "Feature 3": document.getElementById("feat3")?.value || ''
+  };
+
+  const paragraphs = Object.entries(fields).map(([label, value]) =>
+    new Paragraph({
+      spacing: { after: 200 },
+      children: [
+        new TextRun({ text: label + ": ", bold: true, size: 28, font: "Roboto" }),
+        new TextRun({ text: value, size: 24, font: "Roboto" })
+      ]
+    })
+  );
+
+  const doc = new Document({ sections: [{ children: paragraphs }] });
+
+  const blob = await Packer.toBlob(doc);
+  const url = URL.createObjectURL(blob);
+
+  const a = document.createElement("a");
+  a.href = url;
+  a.download = "AuctionInc_Property_Summary.docx";
+  a.click();
+
+  URL.revokeObjectURL(url);
+}
+
+// =====================
+// Export for HTML onclick="..."
+// =====================
+window.generateTemplate = generateTemplate;
+window.generateAndDownload = generateAndDownload;
 window.downloadWordDoc = downloadWordDoc;
 
+// =====================
+// Minor UX tweaks (NEW)
+// 1) Default date picker to today
+// 2) Symbol shortcuts: m2 -> m², +- or +/- -> ±
+// =====================
 
+function setDatePickerToToday() {
+  const dp = document.getElementById("date-picker");
+  if (!dp) return;
 
+  const today = new Date();
+  const yyyy = today.getFullYear();
+  const mm = String(today.getMonth() + 1).padStart(2, "0");
+  const dd = String(today.getDate()).padStart(2, "0");
+  const iso = `${yyyy}-${mm}-${dd}`;
 
+  // Only set if empty (so you can still choose another date manually)
+  if (!dp.value) dp.value = iso;
+}
+
+function enableSymbolShortcuts() {
+  // Apply to all text inputs + textareas
+  const fields = document.querySelectorAll('textarea, input[type="text"]');
+
+  fields.forEach((el) => {
+    el.addEventListener("input", () => {
+      const start = el.selectionStart;
+      const before = el.value;
+
+      // Convert shortcuts
+      const after = before
+        .replace(/\bm2\b/g, "m²")
+        .replace(/\+\/-|\+\-/g, "±");
+
+      if (after !== before) {
+        el.value = after;
+
+        // Keep cursor roughly where user was typing
+        const delta = after.length - before.length;
+        const newPos = Math.max(0, start + delta);
+        el.setSelectionRange(newPos, newPos);
+      }
+    });
+  });
+}
+
+document.addEventListener("DOMContentLoaded", () => {
+  setDatePickerToToday();
+  enableSymbolShortcuts();
+});
 
 
 
