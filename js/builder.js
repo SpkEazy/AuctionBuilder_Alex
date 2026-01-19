@@ -252,6 +252,8 @@ async function collectFormData() {
   };
 }
 
+
+
 // =====================
 // Canvas draws (return Promises so downloads wait correctly)
 // =====================
@@ -535,7 +537,7 @@ window.generateAndDownload = generateAndDownload;
 window.downloadWordDoc = downloadWordDoc;
 
 // =====================
-// Minor UX tweaks (WORKING + SAFE INIT)
+// Minor UX tweaks (NEW)
 // 1) Default date picker to today
 // 2) Symbol shortcuts: m2 -> m², +- or +/- -> ±
 // =====================
@@ -555,20 +557,17 @@ function setDatePickerToToday() {
 }
 
 function enableSymbolShortcuts() {
-  // Apply to all text inputs + textareas (same scope as your original, so nothing else changes)
+  // Apply to all text inputs + textareas
   const fields = document.querySelectorAll('textarea, input[type="text"]');
 
   fields.forEach((el) => {
     el.addEventListener("input", () => {
-      // Guard: some inputs can be weird in older browsers / non-text fields
-      if (typeof el.selectionStart !== "number") return;
-
       const start = el.selectionStart;
       const before = el.value;
 
       // Convert shortcuts
       const after = before
-        .replace(/\bm2\b/gi, "m²")          // case-insensitive, still only whole-word m2
+        .replace(/\bm2\b/g, "m²")
         .replace(/\+\/-|\+\-/g, "±");
 
       if (after !== before) {
@@ -583,21 +582,10 @@ function enableSymbolShortcuts() {
   });
 }
 
-// ✅ Robust init: works whether builder.js loads BEFORE or AFTER DOMContentLoaded
-function initMinorUXTweaks() {
+document.addEventListener("DOMContentLoaded", () => {
   setDatePickerToToday();
   enableSymbolShortcuts();
-}
-
-if (document.readyState === "loading") {
-  document.addEventListener("DOMContentLoaded", initMinorUXTweaks);
-} else {
-  initMinorUXTweaks();
-}
-
-
-
-
+});
 
 
 
