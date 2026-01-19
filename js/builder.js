@@ -42,9 +42,40 @@ const BROKERS = {
 // =====================
 // Helpers
 // =====================
+
+// ✅ parse "YYYY-MM-DD" or "YYYY/MM/DD" safely and build a Date
+function parseYMD(dateString, timeString) {
+  if (!dateString || !timeString) return null;
+
+  const m = String(dateString).trim().match(/^(\d{4})[\/-](\d{2})[\/-](\d{2})$/);
+  if (!m) return null;
+
+  const year = Number(m[1]);
+  const month = Number(m[2]); // 1-12
+  const day = Number(m[3]);
+
+  const t = String(timeString).trim().match(/^(\d{2}):(\d{2})$/);
+  if (!t) return null;
+
+  const hh = Number(t[1]);
+  const mm = Number(t[2]);
+
+  // Local time, avoids browser parsing quirks
+  const dt = new Date(year, month - 1, day, hh, mm, 0, 0);
+
+  // guard against invalid rollover (e.g. 2025/99/99)
+  if (
+    dt.getFullYear() !== year ||
+    dt.getMonth() !== (month - 1) ||
+    dt.getDate() !== day
+  ) return null;
+
+  return dt;
+}
+
 function formatDate(dateString, timeString) {
-  if (!dateString || !timeString) return '';
-  const date = new Date(`${dateString}T${timeString}`);
+  const date = parseYMD(dateString, timeString);
+  if (!date) return '';
   const options = { weekday: 'long', day: 'numeric', month: 'long', year: 'numeric' };
   return `${date.toLocaleDateString('en-ZA', options)} @ ${timeString}`;
 }
@@ -251,8 +282,6 @@ async function collectFormData() {
     propertyImage: await getImageDataUrl('property-img')
   };
 }
-
-
 
 // =====================
 // Canvas draws (return Promises so downloads wait correctly)
@@ -482,16 +511,13 @@ async function downloadWordDoc() {
 
   const rawDate = document.getElementById("date-picker")?.value || '';
   const rawTime = document.getElementById("time-picker")?.value || '';
-  const fullDateObj = new Date(`${rawDate}T${rawTime}`);
 
-  const formattedDate = fullDateObj.toLocaleDateString('en-ZA', {
-    weekday: 'long',
-    day: 'numeric',
-    month: 'long',
-    year: 'numeric'
-  });
+  const dt = parseYMD(rawDate, rawTime);
+  const formattedDate = dt
+    ? dt.toLocaleDateString('en-ZA', { weekday: 'long', day: 'numeric', month: 'long', year: 'numeric' })
+    : '';
 
-  const fullDateTime = `${formattedDate} @ ${rawTime}`;
+  const fullDateTime = formattedDate && rawTime ? `${formattedDate} @ ${rawTime}` : '';
 
   const fields = {
     "Broker": `${broker.name || ''} | ${broker.phone || ''} | ${broker.email || ''}`,
@@ -537,55 +563,46 @@ window.generateAndDownload = generateAndDownload;
 window.downloadWordDoc = downloadWordDoc;
 
 // =====================
-// Minor UX tweaks (NEW)
-// 1) Default date picker to today
-// 2) Symbol shortcuts: m2 -> m², +- or +/- -> ±
+// Minor UX tweaks (DATE FIX ONLY)
+// - Default date picker to TODAY, regardless of when builder.js loads
+// - Supports native <input type="date"> and text/masked date inputs (YYYY/MM/DD)
 // =====================
-
 function setDatePickerToToday() {
   const dp = document.getElementById("date-picker");
   if (!dp) return;
+
+  // Only set if empty (so you can still choose another date manually)
+  if (dp.value) return;
 
   const today = new Date();
   const yyyy = today.getFullYear();
   const mm = String(today.getMonth() + 1).padStart(2, "0");
   const dd = String(today.getDate()).padStart(2, "0");
-  const iso = `${yyyy}-${mm}-${dd}`;
 
-  // Only set if empty (so you can still choose another date manually)
-  if (!dp.value) dp.value = iso;
+  if (dp.type === "date") {
+    dp.value = `${yyyy}-${mm}-${dd}`;
+  } else {
+    dp.value = `${yyyy}/${mm}/${dd}`;
+  }
+
+  dp.dispatchEvent(new Event("input", { bubbles: true }));
+  dp.dispatchEvent(new Event("change", { bubbles: true }));
 }
 
-function enableSymbolShortcuts() {
-  // Apply to all text inputs + textareas
-  const fields = document.querySelectorAll('textarea, input[type="text"]');
-
-  fields.forEach((el) => {
-    el.addEventListener("input", () => {
-      const start = el.selectionStart;
-      const before = el.value;
-
-      // Convert shortcuts
-      const after = before
-        .replace(/\bm2\b/g, "m²")
-        .replace(/\+\/-|\+\-/g, "±");
-
-      if (after !== before) {
-        el.value = after;
-
-        // Keep cursor roughly where user was typing
-        const delta = after.length - before.length;
-        const newPos = Math.max(0, start + delta);
-        el.setSelectionRange(newPos, newPos);
-      }
-    });
-  });
-}
-
-document.addEventListener("DOMContentLoaded", () => {
+function initDateDefault() {
   setDatePickerToToday();
-  enableSymbolShortcuts();
-});
+}
+
+// Run even if DOMContentLoaded already happened
+if (document.readyState === "loading") {
+  document.addEventListener("DOMContentLoaded", initDateDefault);
+} else {
+  initDateDefault();
+}
+
+// Also handle cases where the form renders slightly late
+setTimeout(initDateDefault, 200);
+setTimeout(initDateDefault, 800);
 
 
 
