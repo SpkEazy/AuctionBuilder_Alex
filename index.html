@@ -25,6 +25,35 @@
 </head>
 <body>
   <form id="input-form" spellcheck="true" lang="en-GB">
+    <label>Broker:
+      <select id="broker">
+        <option value="alex-krause" selected>Alex Krause</option>
+        <option value="gary-brower">Gary Brower</option>
+        <option value="bongane-khumalo">Bongane Khumalo</option>
+        <option value="cliff-matshatsha">Cliff Matshatsha</option>
+        <option value="daniel-wachenheimer">Daniel Wachenheimer</option>
+        <option value="dean-doucha">Dean Doucha</option>
+        <option value="elki-medalie">Elki Medalie</option>
+        <option value="doron-sacks">Doron Sacks</option>
+        <option value="george-merricks">George Merricks</option>
+        <option value="gerhard-venter">Gerhard Venter</option>
+        <option value="jenny-pillay">Jenny Pillay</option>
+        <option value="jessica-beyers-lahner">Jessica Beyers-Lahner</option>
+        <option value="jodi-bedil">Jodi Bedil</option>
+        <option value="jodi-frankel">Jodi Frankel</option>
+        <option value="keith-nkosi">Keith Nkosi</option>
+        <option value="luanda-tlhotlhalemaje">Luanda Tlhotlhalemaje</option>
+        <option value="nic-brett">Nic Brett</option>
+        <option value="reece-louw">Reece Louw</option>
+        <option value="reshma-sookran">Reshma Sookran</option>
+        <option value="shlomo-hecht">Shlomo Hecht</option>
+        <option value="sim-mthembu">Sim Mthembu</option>
+        <option value="stuart-holliman">Stuart Holliman</option>
+        <option value="thabani-ncube">Thabani Ncube</option>
+        <option value="yoni-dadon">Yoni Dadon</option>
+      </select>
+    </label><br>
+
     <label>Headline: <textarea id="headline" rows="1" spellcheck="true">Lux 6-Bed Penthouse</textarea></label><br>
     <label>Subheadline: <textarea id="subheadline" rows="1" spellcheck="true">Lux 6-Bed</textarea></label><br>
     <label>Subheadline 2: <textarea id="subheadline2" rows="1" spellcheck="true">Penthouse</textarea></label><br>
@@ -32,7 +61,9 @@
     <label>Suburb: <textarea id="suburb" rows="1" spellcheck="true">Sandton</textarea></label><br>
     <label>Tagline 1: <textarea id="tag1" rows="1" spellcheck="true">Breathtaking</textarea></label><br>
     <label>Tagline 2: <textarea id="tag2" rows="1" spellcheck="true">Views</textarea></label><br>
+
     <label>Select Date: <input type="date" id="date-picker" value="2025-06-14"></label><br>
+
     <label>Select Time:
       <select id="time-picker">
         <option value="09:00">09:00</option>
@@ -49,39 +80,42 @@
         <option value="18:30">18:30</option>
       </select>
     </label><br>
+
     <label>Address: <textarea id="address" rows="1" spellcheck="true">160 2nd Avenue, Edenvale</textarea></label><br>
     <label>Feature 1: <textarea id="feat1" rows="1" spellcheck="true">6 Bedrooms + 4 Bathrooms (main en-suite)</textarea></label><br>
     <label>Feature 2: <textarea id="feat2" rows="1" spellcheck="true">Home Office | Enclosed Entertainment Patio</textarea></label><br>
     <label>Feature 3: <textarea id="feat3" rows="1" spellcheck="true">Expansive Garden, Sparkling Pool + 2 Garages</textarea></label><br>
-    <label>Upload Property Image: <input type="file" id="property-img"></label><br>
 
+    <label>Upload Property Image: <input type="file" id="property-img"></label><br>
   </form>
 
-<button onclick="downloadWordDoc()">Download Word Summary</button>
+  <!-- ✅ IMPORTANT: Make buttons type="button" so the form never submits/reloads -->
+  <button type="button" onclick="downloadWordDoc()">Download Word Summary</button>
 
   <h2>Previews</h2>
   <div class="preview-panel">
     <div class="preview-block">
       <h3>Social Design</h3>
-      <button onclick="generateAndDownload('social')">Download Social</button>
+      <button type="button" onclick="generateAndDownload('social')">Download Social</button>
       <div id="social-preview" class="preview-box"></div>
     </div>
 
     <div class="preview-block">
       <h3>Newsletter Design</h3>
-      <button onclick="generateAndDownload('newsletter')">Download Newsletter</button>
+      <button type="button" onclick="generateAndDownload('newsletter')">Download Newsletter</button>
       <div id="newsletter-preview" class="preview-box"></div>
     </div>
 
     <div class="preview-block">
       <h3>Flyer Design</h3>
-      <button onclick="generateAndDownload('flyer')">Download Flyer</button>
+      <button type="button" onclick="generateAndDownload('flyer')">Download Flyer</button>
       <div id="flyer-preview" class="preview-box"></div>
     </div>
   </div>
 
-
   <script src="js/builder.js?v=2"></script>
 </body>
 </html>
+
+
 
