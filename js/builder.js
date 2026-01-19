@@ -536,6 +536,59 @@ window.generateTemplate = generateTemplate;
 window.generateAndDownload = generateAndDownload;
 window.downloadWordDoc = downloadWordDoc;
 
+// =====================
+// Minor UX tweaks (NEW)
+// 1) Default date picker to today
+// 2) Symbol shortcuts: m2 -> m², +- or +/- -> ±
+// =====================
+
+function setDatePickerToToday() {
+  const dp = document.getElementById("date-picker");
+  if (!dp) return;
+
+  const today = new Date();
+  const yyyy = today.getFullYear();
+  const mm = String(today.getMonth() + 1).padStart(2, "0");
+  const dd = String(today.getDate()).padStart(2, "0");
+  const iso = `${yyyy}-${mm}-${dd}`;
+
+  // Only set if empty (so you can still choose another date manually)
+  if (!dp.value) dp.value = iso;
+}
+
+function enableSymbolShortcuts() {
+  // Apply to all text inputs + textareas
+  const fields = document.querySelectorAll('textarea, input[type="text"]');
+
+  fields.forEach((el) => {
+    el.addEventListener("input", () => {
+      const start = el.selectionStart;
+      const before = el.value;
+
+      // Convert shortcuts
+      const after = before
+        .replace(/\bm2\b/g, "m²")
+        .replace(/\+\/-|\+\-/g, "±");
+
+      if (after !== before) {
+        el.value = after;
+
+        // Keep cursor roughly where user was typing
+        const delta = after.length - before.length;
+        const newPos = Math.max(0, start + delta);
+        el.setSelectionRange(newPos, newPos);
+      }
+    });
+  });
+}
+
+document.addEventListener("DOMContentLoaded", () => {
+  setDatePickerToToday();
+  enableSymbolShortcuts();
+});
+
+
+
 
 
 
