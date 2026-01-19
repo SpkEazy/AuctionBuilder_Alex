@@ -3,7 +3,7 @@
 // =====================
 
 // ✅ Nudge the SOCIAL top-right red tag (in "design pixels" based on 1130-wide photo canvas system)
-const SOCIAL_RED_TAG_NUDGE_X = 50; // + right, - left (try 40–120)
+const SOCIAL_RED_TAG_NUDGE_X = 45; // + right, - left (try 40–120)
 const SOCIAL_RED_TAG_NUDGE_Y = 0;  // + down, - up
 
 // Optional: if you want the tag slightly more/less transparent
@@ -598,6 +598,7 @@ document.addEventListener("DOMContentLoaded", () => {
   setDatePickerToToday();
   enableSymbolShortcuts();
 });
+
 
 
 
